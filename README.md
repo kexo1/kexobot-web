@@ -12,7 +12,3 @@ Private discord python bot which checks selected websites for new info, updates 
 ## Authors
 
 * **Kexo** - *Main developer* - [kexo1](https://github.com/kexo1)
-
-## Acknowledgments
-
-* the.om - Thank you for helping me fix py-cord and wavelink compability problems in docker.

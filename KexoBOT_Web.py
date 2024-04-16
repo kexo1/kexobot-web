@@ -101,7 +101,7 @@ class Scraping:
 
         source = self.session.get('https://online-fix.me/chat.php').text
 
-        # REMOVE RUSSIAN TEXT
+        # Remove russian text
         source = source.replace(' по сети', '')
 
         game_info = []
@@ -127,15 +127,15 @@ class Scraping:
                 to_upload.append(game['title'])
 
                 if game['title'] not in onlinefix_cache:
-                    # GOING INTO ONLINE-FIX GAME LINK
+                    # Online-fix game page
                     source = self.session.get(game['link']).text
 
-                    # GETTING THUMBNAIL
+                    # Thumbnail
                     pattern = re.compile(r'<meta property="og:image" content="(.*?)"')
                     match = pattern.search(source)
                     image_link = match.group(1)
 
-                    # GETTING DESCRIPTION AND TRANSLATING TEXT
+                    # Getting description and translating text
                     pattern = re.compile(r'Причина: (.*?)\n')
                     match = pattern.search(source)
                     description = GoogleTranslator(source='ru').translate(text=match.group(1))
@@ -198,7 +198,7 @@ class Scraping:
                     regex = re.compile(r'v\d+(\.\d+)+')
                     if regex.match(game_title[-1]):
                         version = f' got updated to {game_title[-1]}'
-                        game_title.pop(-1)
+                        game_title.pop()
                     # If not version, get build instead
                     else:
                         pattern = r"Build [\d.]+"
@@ -247,24 +247,24 @@ class Scraping:
                     to_upload.append(game['full_title'])
                     if game['full_title'] not in game3rb_cache:
 
-                        # GOING INTO GAME3RB GAME LINK
+                        # Game info page
                         description = []
                         source = self.session.get(game['link'])
                         soup = BeautifulSoup(source.content, 'html.parser')
 
-                        # GETTING TORRENT LINK
+                        # Torrent link
                         torrent_link = soup.find('a', {'class': 'torrent'})
                         if torrent_link:
                             torrent = f'[Torrent link]({torrent_link["href"]})'
                             description.append(torrent)
 
-                        # GETTING DIRECT LINK
+                        # Direct link
                         direct_link = soup.find('a', {'class': 'direct'})
                         if direct_link:
                             direct = f'[Direct link]({direct_link["href"]})'
                             description.append(direct)
 
-                        # GETTING CRACK LINK
+                        # Game crack link
                         if 'Fix already included' in str(soup) or 'Crack online already added' in str(soup):
                             description.append('_Fix already included_')
                         else:
@@ -288,7 +288,6 @@ class Scraping:
 
                             # Remove any HTML tags from the update name
                             update_name = re.sub(r'<.*?>', '', update_name)
-                            # Remove \n
                             update_name = update_name.strip()
 
                             game_update_name.append(unidecode.unidecode(update_name.strip()))
@@ -329,13 +328,13 @@ class Scraping:
 
         try:
             async for submission in subreddit.new(limit=3):
-                # CHECK IF IT'S GAME WITH SECURE HTTP
+
                 if submission.url not in reddit_cache:
                     if '(game)' in submission.title.lower() and 'https' in submission.url and 'virtual' not in submission.title.lower() and 'trivia' not in submission.title.lower():
 
                         number = [k for k in ignore_list if k in submission.url]
 
-                        # CHECK IF IS NOT IN BLACKLISTED SITES AND DATABASE
+                        # Check if is not in blacklisted sites and database
                         if not number:
                             reddit_link_cache = [reddit_link_cache[-1]] + reddit_link_cache[:-1]
                             reddit_link_cache[0] = submission.url
@@ -567,7 +566,7 @@ class Scraping:
             print("No articles in hliniknadhronom")
             return
 
-        # GET FIRST 3 ARTICLES
+        # Get first 3 articles
         for i in range(3):
             article = article.find_next('div', {'class': 'short-text-envelope-default short-text-envelope'})
             if 'elektriny' not in article.find('a')['aria-label']:
@@ -625,7 +624,6 @@ class Scraping:
             print("No article in esutaze")
             return
 
-        # GET 9 ARTICLES
         for i in range(3):
 
             article = article.find_next('item')
@@ -685,9 +683,6 @@ class Scraping:
 class_scraping = Scraping()
 
 
-# LOOPS
-
-
 @tasks.loop(hours=6)
 async def daily_loop():
     now = datetime.now()
@@ -702,7 +697,7 @@ async def main_loop():
     now = datetime.now()
 
     if main_loop.counter == 0:
-        # IF SCHOOL HOLIDAY, OR NIGHT, SKIP EDUPAGE CHECK CYCLE TO REDDIT_CHECK
+        # If school holiday, or night, skip edupage check cycle to reddit_check (update 2024: no longer using edupage_api, code is skipped automatically)
         if now.month not in (7, 8) and now.hour not in list(range(7)):
             main_loop.counter = 1
             await class_scraping.edupage_news_check()
@@ -762,8 +757,6 @@ async def change_presences(number):
     await bot.change_presence(
         activity=discord.Activity(type=discord.ActivityType.watching, name=presences[number]))
 
-
-# FREE GAMES
 
 async def key_hub(url, session):
     source = session.get(url).text
