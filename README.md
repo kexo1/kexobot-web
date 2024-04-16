@@ -2,12 +2,18 @@
 
 [![Python Badge]][Python]
 [![MongoDB Badge]][MongoDB]
+[![Docker Badge]][Docker]
+[![Fly.io Badge]][Fly.io]
 
 <div align = left>
 
 # KexoBOT_Web
 
 Private discord python bot which checks selected websites for new info, updates and free deals.
+
+## Versioning
+* Python stable version: ![version](https://img.shields.io/badge/version-3.11.4-blue)
+
 
 ## Built With
 
@@ -26,3 +32,9 @@ Private discord python bot which checks selected websites for new info, updates 
 
 [MongoDB Badge]: https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white
 [MongoDB]: https://www.mongodb.com/
+
+[Fly.io Badge]: https://img.shields.io/badge/Fly.io-purple?style=for-the-badge&logo=CLion
+[Fly.io]: https://fly.io/
+
+[Docker Badge]: https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white
+[Docker]: https://www.docker.com/
