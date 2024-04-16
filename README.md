@@ -1,3 +1,10 @@
+<div align = center>
+
+[![Python Badge]][Python]
+[![MongoDB Badge]][MongoDB]
+
+<div align = left>
+
 # KexoBOT_Web
 
 Private discord python bot which checks selected websites for new info, updates and free deals.
@@ -12,3 +19,10 @@ Private discord python bot which checks selected websites for new info, updates 
 ## Authors
 
 * **Kexo** - *Main developer* - [kexo1](https://github.com/kexo1)
+
+
+[Python Badge]: https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54
+[Python]: https://www.python.org/
+
+[MongoDB Badge]: https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white
+[MongoDB]: https://www.mongodb.com/
