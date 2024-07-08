@@ -51,8 +51,6 @@ class Bot(commands.Bot):
 
 
 bot = Bot(intents=intents)
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class Scraping:
@@ -141,7 +139,9 @@ class Scraping:
                     embed = discord.Embed(title=game['title'] + version,
                                           url=game['link'],
                                           description=description, color=discord.Color.blue())
-                    embed.timestamp = datetime.now(datetime.UTC)
+                    # embed.timestamp = datetime.now(datetime.UTC)
+                    embed.timestamp = datetime.utcnow()
+
                     embed.set_footer(text='https://online-fix.me',
                                      icon_url='https://media.discordapp.net/attachments/796453724713123870/1035951759505506364/favicon-1.png')
                     embed.set_thumbnail(url=image_link)
@@ -496,7 +496,7 @@ class Scraping:
                 embed = discord.Embed(title=title, url=link, description=post)
                 above_limit = False
 
-            embed.timestamp = datetime.now(datetime.UTC)
+            embed.timestamp = datetime.utcnow()
             embed.set_footer(text='',
                              icon_url='https://www.hliniknadhronom.sk/portals_pictures/i_006868/i_6868718.png')
             user = await bot.fetch_user(402221830930432000)
@@ -573,7 +573,7 @@ class Scraping:
             embed = discord.Embed(title=title, url=giveaway_link, description=description,
                                   colour=discord.Colour.brand_red())
             embed.set_image(url=image_link)
-            embed.timestamp = datetime.now(datetime.UTC)
+            embed.timestamp = datetime.utcnow()
             embed.set_footer(text=esutaze_link,
                              icon_url='https://www.startpage.com/av/proxy-image?piurl=https%3A%2F%2Fwww.esutaze.sk%2Fwp-content%2Fuploads%2F2016%2F11%2Flogo-esutaze.png&sp=1700075018T81dcbed0be165129a6c3452c1165a337a93663c6c749eacb888d407c52b0ad3f')
             user = await bot.fetch_user(402221830930432000)
@@ -673,6 +673,7 @@ async def key_hub(url, session):
                           match.group(1)))
 
 
+# noinspection PyUnusedLocal
 async def gleam(url, session=None):
     await send_embed(('Gleam',
                       'Gleam - keys from this site __disappear really fast__ so you should go and get it fast!',
@@ -681,6 +682,7 @@ async def gleam(url, session=None):
                       None))
 
 
+# noinspection PyUnusedLocal
 async def steelseries(url, session=None):
     await send_embed(('SteelSeries: Game On!',
                       'Steelseries - you will need to __install steelseries app__ so you could claim key',
@@ -700,7 +702,8 @@ async def alienwarearena(url, session):
         match = pattern.search(source)
     else:
         title = 'Free game'
-        print(source)
+        user = await bot.fetch_user(402221830930432000)
+        await user.send(f"Couldn' get data: \n{source}")
 
     await send_embed((title,
                       '**Alienware** - keys from this site __disappear really fast__ so you should go and get it fast!',

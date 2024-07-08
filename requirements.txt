@@ -4,7 +4,6 @@ pymongo
 asyncio
 nest-asyncio
 requests
-edupage-api
 asyncpraw
 bs4
 deep-translator
