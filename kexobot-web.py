@@ -56,9 +56,7 @@ class Scraping:
     def __init__(self):
         self.session = requests.Session()
         self.session.verify = True
-        self.session.headers = {
-            'User-Agent': ua.random
-        }
+        self.session.headers = {'User-Agent': ua.random}
 
         self.database = MongoClient(
             f"mongodb+srv://{os.getenv('MONGO_URL')}@cluster0.exygx.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")[
@@ -79,12 +77,22 @@ class Scraping:
             ' Hotfix 2' ' Hotfix', ' rc', '\u200b', '-GOG', '-Repack', ' VR', '/Denuvoless', ' (Build',
             '-FitGirl Repack', '[Frankenpack]', ')')
 
-        self.exception = (
+        self.online_exception = (
             'Barotrauma', 'Green Hell', 'Ready or Not', 'Generation Zero', 'Evil West',
             'Devour', 'Minecraft Legends', 'The Long Drive', 'Stronghold Definitive Edition', 'Valheim', 'No Mans Sky',
             'Warhammer 40,000: Space Marine 2')
 
         self.split_parts = (' *', '* ', '*', '---')
+
+        self.freegame_dict = {'gleam': (
+            'Gleam', '**Gleam** - keys from this site __disappear really fast__ so you should go and get it fast!',
+            'https://media.discordapp.net/attachments/796453724713123870/1038118297914318878/favicon.png'),
+            'alienwarearena': ('Alienwarearena',
+                               '**Alienwarearena** - keys from this site __disappear really fast__ so you should go and get it fast!',
+                               'https://media.discordapp.net/attachments/796453724713123870/1009896932929441874/unknown.png'),
+            'steelseries': ('SteelSeries: Game On!',
+                            'Steelseries - you will need to __install steelseries app__ so you could claim key',
+                            'https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Flogonoid.com%2Fimages%2Fsteelseries-logo.png&f=1&nofb=1&ipt=9b95ffe9c56d51d56d320f181ffa9cad858d40b8f6f5a499fa2e0dbca7a0f798&ipo=images')}
 
     async def onlinefix(self):
 
@@ -206,9 +214,7 @@ class Scraping:
                 pattern = r"Build [\d.]+"
                 match = re.search(pattern, full_title)
 
-                if not match:
-                    version = 'unknown'
-                else:
+                if match:
                     version = f' got updated to {match.group().lower()}'
                     to_remove = version.split()[-1]
 
@@ -223,6 +229,7 @@ class Scraping:
 
             game_title = ' '.join(game_title)
 
+            # Get tags
             carts = []
             for cart in article.find_all(id='cart'):
                 if cart:
@@ -232,7 +239,7 @@ class Scraping:
 
             # If Game3rb stripped title in game list
             if game_title.lower() in games.lower():
-                if any(game in game_title for game in self.exception):
+                if any(game in game_title for game in self.online_exception):
                     # Skip loop if not online tag for required games with online tag
                     if has_online is False:
                         article = article.find_next('article')
@@ -246,86 +253,89 @@ class Scraping:
                  'image': article.find('img', {'class': 'entry-image'})['src'],
                  'timestamp': article.find('time')['datetime'], 'carts': carts})
             article = article.find_next('article')
-
+        # If nothing found, return
         if not game_info:
             return
 
         for game in game_info:
             to_upload.append(game['full_title'])
-            if game['full_title'] not in game3rb_cache:
 
-                # Game info page
-                description = []
-                source = self.session.get(game['link'])
-                soup = BeautifulSoup(source.content, 'html.parser')
+            if game['full_title'] in game3rb_cache:
+                continue
 
-                # Torrent link
-                torrent_link = soup.find('a', {'class': 'torrent'})
-                if torrent_link:
-                    torrent = f'[Torrent link]({torrent_link["href"]})'
-                    description.append(torrent)
+            # Game info page
+            description = []
+            source = self.session.get(game['link'])
+            soup = BeautifulSoup(source.content, 'html.parser')
 
-                # Direct link
-                direct_link = soup.find('a', {'class': 'direct'})
-                if direct_link:
-                    direct = f'[Direct link]({direct_link["href"]})'
-                    description.append(direct)
+            # Torrent link
+            torrent_link = soup.find('a', {'class': 'torrent'})
+            if torrent_link:
+                torrent = f'[Torrent link]({torrent_link["href"]})'
+                description.append(torrent)
 
-                # Game crack link
-                if 'Fix already included' in str(soup) or 'Crack online already added' in str(soup):
-                    description.append('_Fix already included_')
+            # Direct link
+            direct_link = soup.find('a', {'class': 'direct'})
+            if direct_link:
+                direct = f'[Direct link]({direct_link["href"]})'
+                description.append(direct)
+
+            # Game crack link
+            if 'Fix already included' in str(soup) or 'Crack online already added' in str(soup):
+                description.append('_Fix already included_')
+            else:
+                crack_url = soup.find('a', {'class': 'online'})
+
+                if crack_url:
+                    crack_url = f'[Crack link]({crack_url["href"]})'
+                    description.append(crack_url)
                 else:
-                    online_link = soup.find('a', {'class': 'online'})
-                    if online_link:
-                        crack = f'[Crack link]({online_link["href"]})'
-                        description.append(crack)
-                    else:
-                        crack_link = soup.find('a', {'class': 'crack'})
-                        if crack_link:
-                            crack = f'[Crack link]({crack_link["href"]})'
-                            description.append(crack)
+                    crack_url = soup.find('a', {'class': 'crack'})
+                    if crack_url:
+                        crack_url = f'[Crack link]({crack_url["href"]})'
+                        description.append(crack_url)
 
-                # Get update links
-                game_update_link, game_update_name = [], []
-                update_pattern = r'>Update (.*?)</strong>.*?<a\s+id="download-link"\s+class="update"\s+href="(.*?)"'
+            # Get update links
+            game_update_link, game_update_name = [], []
+            update_pattern = r'>Update (.*?)</strong>.*?<a\s+id="download-link"\s+class="update"\s+href="(.*?)"'
 
-                for match in re.finditer(update_pattern, source.text, re.DOTALL):
-                    update_name = match.group(1)
-                    update_link = match.group(2)
+            for match in re.finditer(update_pattern, source.text, re.DOTALL):
+                update_name = match.group(1)
+                update_link = match.group(2)
 
-                    # Remove any HTML tags from the update name
-                    update_name = re.sub(r'<.*?>', '', update_name)
-                    update_name = update_name.strip()
+                # Remove any HTML tags from the update name
+                update_name = re.sub(r'<.*?>', '', update_name)
+                update_name = update_name.strip()
 
-                    game_update_name.append(unidecode.unidecode(update_name.strip()))
-                    game_update_link.append(unidecode.unidecode(update_link.strip()))
+                game_update_name.append(unidecode.unidecode(update_name.strip()))
+                game_update_link.append(unidecode.unidecode(update_link.strip()))
 
-                embed = discord.Embed(title=game['title'] + game['version'], url=game['link'])
-                embed.timestamp = datetime.fromisoformat(game['timestamp'])
-                embed.add_field(name='Download links:',
-                                value='\n'.join(description))
+            embed = discord.Embed(title=game['title'] + game['version'], url=game['link'])
+            embed.timestamp = datetime.fromisoformat(game['timestamp'])
+            embed.add_field(name='Download links:',
+                            value='\n'.join(description))
 
-                if game_update_name:
-                    game_update = '\n'.join(
-                        f'{i + 1}. [{game_update_name[i]}]({game_update_link[i]})' for i in
-                        range(len(game_update_link)))
-                    embed.add_field(name='Update links:', value=game_update, inline=False)
+            if game_update_name:
+                game_update = '\n'.join(
+                    f'{i + 1}. [{game_update_name[i]}]({game_update_link[i]})' for i in
+                    range(len(game_update_link)))
+                embed.add_field(name='Update links:', value=game_update, inline=False)
 
-                embed.set_footer(text=', '.join(carts),
-                                 icon_url='https://media.discordapp.net/attachments/796453724713123870/1162443171209433088/d95X3.png?ex=653bf491&is=65297f91&hm=c36058433d50580eeec7cd89ddfe60965ec297d6fc8054994fee5ae976bedfd3&=')
-                embed.set_image(url=game['image'])
-                game_updates = bot.get_channel(882185054174994462)
-                await game_updates.send(embed=embed)
+            embed.set_footer(text=', '.join(carts),
+                             icon_url='https://media.discordapp.net/attachments/796453724713123870/1162443171209433088/d95X3.png?ex=653bf491&is=65297f91&hm=c36058433d50580eeec7cd89ddfe60965ec297d6fc8054994fee5ae976bedfd3&=')
+            embed.set_image(url=game['image'])
+            game_updates = bot.get_channel(882185054174994462)
+            await game_updates.send(embed=embed)
 
         if to_upload:
             self.database.update_one({'_id': ObjectId('6178211ec5f5c08c699b8fd3')},
                                      {'$set': {'game3rb_cache': to_upload}})
 
-    async def reddit_check(self):
+    async def free_games_check(self):
 
-        reddit_cache = self.database.find_one({'_id': ObjectId('617958fae4043ee4a3f073f2')})
-        reddit_link_cache = reddit_cache['free_game_link']
-        reddit_cache = reddit_link_cache
+        freegame_url_cache = self.database.find_one({'_id': ObjectId('617958fae4043ee4a3f073f2')})
+        _freegame_url_cache = freegame_url_cache['free_game_link']
+        freegame_url_cache = _freegame_url_cache
 
         ignore_list = self.database.find_one({'_id': ObjectId('6178211ec5f5c08c699b8fd3')})
         ignore_list = ignore_list['freegame_exceptions']
@@ -335,50 +345,76 @@ class Scraping:
 
         try:
             async for submission in subreddit.new(limit=3):
+                # If it was already posted in disord
+                if submission.url in freegame_url_cache:
+                    continue
+                # If it's free game
+                if '(game)' not in submission.title.lower():
+                    continue
+                # Some simple filters
+                if 'https' not in submission.url \
+                        or 'virtual' in submission.title.lower() \
+                        or 'trivia' in submission.title.lower():
+                    continue
 
-                if submission.url not in reddit_cache:
-                    if '(game)' in submission.title.lower() and 'https' in submission.url and 'virtual' not in submission.title.lower() and 'trivia' not in submission.title.lower():
+                number = [k for k in ignore_list if k in submission.url]
 
-                        number = [k for k in ignore_list if k in submission.url]
-
-                        # Check if is not in blacklisted sites and database
-                        if not number:
-                            reddit_link_cache = [reddit_link_cache[-1]] + reddit_link_cache[:-1]
-                            reddit_link_cache[0] = submission.url
-                            pending_link_list.append(submission.url)
+                # Check if is not in blacklisted sites and database
+                if number:
+                    continue
+                # Move url positions, new url on first position, last one is removed
+                _freegame_url_cache = [_freegame_url_cache[-1]] + _freegame_url_cache[:-1]
+                _freegame_url_cache[0] = submission.url
+                pending_link_list.append(submission.url)
 
         except (
                 asyncprawcore.exceptions.AsyncPrawcoreException, asyncprawcore.exceptions.RequestException,
                 asyncprawcore.exceptions.ResponseException, AssertionError):
             pass
 
-        if pending_link_list:
-            tasks = []
-            self.database.update_one({'_id': ObjectId('617958fae4043ee4a3f073f2')},
-                                     {'$set': {
-                                         'free_game_link': reddit_link_cache}})
+        # If nothing found, return
+        if not pending_link_list:
+            return
 
-            task_funcs = {
-                'key-hub': key_hub,
-                'gleam.io': gleam,
-                'steelseries': steelseries,
-                'alienwarearena': alienwarearena,
-                'fanatical': fanatical,
-            }
+        tasks = []
+        self.database.update_one({'_id': ObjectId('617958fae4043ee4a3f073f2')},
+                                 {'$set': {
+                                     'free_game_link': _freegame_url_cache}})
+        # alienwarearena
+        task_funcs = {
+            'key-hub': key_hub,
+            'fanatical': fanatical
+        }
 
-            for url in pending_link_list:
-                for key, func in task_funcs.items():
-                    if key in url:
-                        tasks.append(func(url, self.session))
-                        break
-                else:
-                    tasks.append(send_embed(('Free game - unknown site',
-                                             'Keys from this site __disappear really fast__ so you should go and get it fast!',
-                                             url, None, None)))
+        for url in pending_link_list:
+            # If url is valid, send link to dedicated fucntions, else make default embed
+            appended = False
 
-            await asyncio.gather(*tasks)
+            for key, func in task_funcs.items():
+                if key in url:
+                    tasks.append(func(url, self.session))
+                    appended = True
+                    break
+            # If not found in first dictionary
+            if appended is True:
+                continue
 
-    async def crack_news(self):
+            for key, value in self.freegame_dict.items():
+                if key in url:
+                    tasks.append(send_embed((value[0], value[1], url, value[2], None)))
+                    appended = True
+                    break
+
+            if appended is True:
+                continue
+            else:
+                tasks.append(send_embed(('Free game - unknown site',
+                                         'Keys from this site __disappear really fast__ so you should go and get it fast!',
+                                         url, None, None)))
+
+        await asyncio.gather(*tasks)
+
+    async def crackwatch_news(self):
 
         crack_cache = self.database.find_one({'_id': ObjectId('617958fae4043ee4a3f073f2')})
         crack_cache_link = crack_cache['crack_game_link']
@@ -446,7 +482,7 @@ class Scraping:
                     if 'denuvo removed' in submission.title.lower() or 'denuvo removed' in ''.join(description).lower():
                         embed.color = discord.Color.gold()
                     else:
-                        embed.color = discord.Color.dark_magenta()
+                        embed.color = discord.Color.orange()
 
                     if image_url:
                         embed.set_image(url=image_url)
@@ -534,16 +570,12 @@ class Scraping:
         post_title = self.database.find_one({'_id': ObjectId('618945c8221f18d804636965')})
         post_title = post_title['esutaze_link_cache']
 
-        try:
-            source = self.session.get("https://www.esutaze.sk/feed/")
-        except:
-            return
+        source = self.session.get("https://www.esutaze.sk/feed/")
 
         soup = BeautifulSoup(source.content, 'xml')
         article = soup.find('channel')
 
         if not article:
-            print("No article in esutaze")
             return
 
         for i in range(3):
@@ -607,7 +639,9 @@ class_scraping = Scraping()
 
 @tasks.loop(hours=6)
 async def daily_loop():
-    now = datetime.now()
+    # now = datetime.now()
+    # Randomize user agent
+    class_scraping.session.headers = {'User-Agent': ua.random}
     await class_scraping.elektrina_vypadky_check()
 
 
@@ -617,7 +651,7 @@ async def main_loop():
 
     if main_loop.counter == 0:
         main_loop.counter = 1
-        await class_scraping.reddit_check()
+        await class_scraping.free_games_check()
 
     elif main_loop.counter == 1:
         main_loop.counter = 2
@@ -629,7 +663,7 @@ async def main_loop():
 
     elif main_loop.counter == 3:
         main_loop.counter = 4
-        await class_scraping.crack_news()
+        await class_scraping.crackwatch_news()
 
     elif main_loop.counter == 4:
         main_loop.counter = 0
@@ -656,7 +690,7 @@ async def before_my_task():
 
 daily_loop.start()
 
-presences = ('Giveaways', 'r/Free Game Findings', 'Game3rb', 'Online-fix', 'r/Crack News')
+presences = ('Giveaways', 'r/Free Game Findings', 'Game3rb', 'Online-fix', 'r/Crackwatch News')
 
 
 async def change_presences(number):
@@ -666,6 +700,7 @@ async def change_presences(number):
 
 async def key_hub(url, session):
     source = session.get(url).text
+
     if 'nsfw' in source.lower():
         return
 
@@ -689,47 +724,6 @@ async def key_hub(url, session):
                       url,
                       'https://cdn.discordapp.com/attachments/823205909353857085/890997523173494794/favicon-32x32.png',
                       match.group(1)))
-
-
-# noinspection PyUnusedLocal
-async def gleam(url, session=None):
-    await send_embed(('Gleam',
-                      'Gleam - keys from this site __disappear really fast__ so you should go and get it fast!',
-                      url,
-                      'https://media.discordapp.net/attachments/796453724713123870/1038118297914318878/favicon.png',
-                      None))
-
-
-# noinspection PyUnusedLocal
-async def steelseries(url, session=None):
-    await send_embed(('SteelSeries: Game On!',
-                      'Steelseries - you will need to __install steelseries app__ so you could claim key',
-                      url,
-                      'https://media.discordapp.net/attachments/796453724713123870/996443673690652682/output-onlinepngtools.png',
-                      None))
-
-
-async def alienwarearena(url, session):
-    source = session.get(url).text
-    # Not working due to IP blocking
-    pattern = re.compile(r'<title>(.*?)<', re.DOTALL)
-    match = pattern.search(source)
-
-    if match:
-        title = html.unescape(match.group(1))
-        pattern = re.compile(r'class="embed-responsive-item" src="(.*?)"', re.DOTALL)
-        match = pattern.search(source)
-    else:
-        title = 'Free game'
-        user = await bot.fetch_user(402221830930432000)
-        await user.send(f"Couldn' get data: \n{source}")
-
-    await send_embed((title,
-                      '**Alienware** - keys from this site __disappear really fast__ so you should go and get it fast!',
-                      url,
-                      'https://media.discordapp.net/attachments/796453724713123870/1009896932929441874/unknown.png',
-                      None))
-    await asyncio.sleep(1)
 
 
 async def fanatical(url, session):
