@@ -265,6 +265,7 @@ class Scraping:
                  'image': article.find('img', {'class': 'entry-image'})['src'],
                  'timestamp': article.find('time')['datetime'], 'carts': carts})
             article = article.find_next('article')
+
         # If nothing found, return
         if not game_info:
             return
