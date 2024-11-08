@@ -78,9 +78,9 @@ class Scraping:
             '-FitGirl Repack', '[Frankenpack]', ')')
 
         self.online_exception = (
-            'Barotrauma', 'Green Hell', 'Ready or Not', 'Generation Zero', 'Evil West',
-            'Devour', 'Minecraft Legends', 'The Long Drive', 'Stronghold Definitive Edition', 'Valheim', 'No Mans Sky',
-            'Warhammer 40,000: Space Marine 2')
+            'barotrauma', 'green hell', 'ready or not', 'generation zero', 'evil west',
+            'devour', 'minecraft legends', 'the long drive', 'stronghold definitive edition', 'valheim', 'no mans sky',
+            'warhammer 40,000: space marine 2', 'abiotic factor', 'core keeper')
 
         self.split_parts = (' *', '* ', '*', '---')
 
@@ -96,8 +96,12 @@ class Scraping:
 
     async def onlinefix(self):
 
-        games = self.database.find_one({'_id': ObjectId('6178211ec5f5c08c699b8fd3')},
+        try:
+            games = self.database.find_one({'_id': ObjectId('6178211ec5f5c08c699b8fd3')},
                                        {'onlinefix_cache': 1, 'games': 1})
+        except pymongo.errors.ServerSelectionTimeoutError:
+            return
+
         onlinefix_cache = games['onlinefix_cache']
         games = games['games']
 
@@ -167,7 +171,11 @@ class Scraping:
 
     async def game3rb_check(self):
 
-        games = self.database.find_one({'_id': ObjectId('6178211ec5f5c08c699b8fd3')}, {'game3rb_cache': 1, 'games': 1})
+        try:
+            games = self.database.find_one({'_id': ObjectId('6178211ec5f5c08c699b8fd3')}, {'game3rb_cache': 1, 'games': 1})
+        except pymongo.errors.ServerSelectionTimeoutError:
+            return
+
         game3rb_cache = games['game3rb_cache']
         games = '\n'.join(games['games'])
 
@@ -221,8 +229,12 @@ class Scraping:
                     try:
                         game_title.pop(game_title.index(to_remove))
                     except ValueError:
-                        if full_title not in game3rb_cache:
+                        if full_title not in game3rb_cache not in to_upload:
                             user = await bot.fetch_user(402221830930432000)
+
+                            # Update list due to user spam
+                            self.database.update_one({'_id': ObjectId('6178211ec5f5c08c699b8fd3')},
+                                                     {'$set': {'game3rb_cache': to_upload}})
                             await user.send(f'Incorrect version format - {full_title}')
                             to_upload.append(full_title)
                         continue
@@ -239,7 +251,7 @@ class Scraping:
 
             # If Game3rb stripped title in game list
             if game_title.lower() in games.lower():
-                if any(game in game_title for game in self.online_exception):
+                if any(game in game_title.lower() for game in self.online_exception):
                     # Skip loop if not online tag for required games with online tag
                     if has_online is False:
                         article = article.find_next('article')
@@ -333,7 +345,11 @@ class Scraping:
 
     async def free_games_check(self):
 
-        freegame_url_cache = self.database.find_one({'_id': ObjectId('617958fae4043ee4a3f073f2')})
+        try:
+            freegame_url_cache = self.database.find_one({'_id': ObjectId('617958fae4043ee4a3f073f2')})
+        except pymongo.errors.ServerSelectionTimeoutError:
+            return
+
         _freegame_url_cache = freegame_url_cache['free_game_link']
         freegame_url_cache = _freegame_url_cache
 
@@ -415,8 +431,11 @@ class Scraping:
         await asyncio.gather(*tasks)
 
     async def crackwatch_news(self):
+        try:
+            crack_cache = self.database.find_one({'_id': ObjectId('617958fae4043ee4a3f073f2')})
+        except pymongo.errors.ServerSelectionTimeoutError:
+            return
 
-        crack_cache = self.database.find_one({'_id': ObjectId('617958fae4043ee4a3f073f2')})
         crack_cache_link = crack_cache['crack_game_link']
         crack_cache = crack_cache_link
 
@@ -514,14 +533,21 @@ class Scraping:
     async def elektrina_vypadky_check(self):
 
         to_upload = []
-        post_link = self.database.find_one({'_id': ObjectId('618945c8221f18d804636965')})
+
+        try:
+            post_link = self.database.find_one({'_id': ObjectId('618945c8221f18d804636965')})
+        except pymongo.errors.ServerSelectionTimeoutError:
+            return
+
         post_link = post_link['hlinik_post_link_cache']
 
         source = self.session.get("https://www.hliniknadhronom.sk/mid/492460/ma0/all/.html")
         soup = BeautifulSoup(source.content, 'html.parser')
         article = soup.find(class_='oznamy-new-columns-all-list-default oznamy-new-columns-all-list')
 
+        # If site is unreachable
         if not article:
+            print('Site is unreachable')
             return
 
         # Get first 3 articles
@@ -564,7 +590,11 @@ class Scraping:
 
     async def esutaze_check(self):
 
-        title_exceptions = self.database.find_one({'_id': ObjectId('6178211ec5f5c08c699b8fd3')})
+        try:
+            title_exceptions = self.database.find_one({'_id': ObjectId('6178211ec5f5c08c699b8fd3')})
+        except pymongo.errors.ServerSelectionTimeoutError:
+            return
+
         title_exceptions = title_exceptions['esutaze_exceptions']
 
         post_title = self.database.find_one({'_id': ObjectId('618945c8221f18d804636965')})
@@ -611,8 +641,7 @@ class Scraping:
             description = description[:pos] + '\n**' + description[pos:] + '**'
 
             source = html.unescape(article.text)
-
-            pattern = re.compile(r'src="(.*?)"', re.DOTALL)
+            pattern = re.compile(r'" src="(.*?)"', re.DOTALL)
             match = pattern.search(source)
             image_link = match.group(1)
 
@@ -625,9 +654,10 @@ class Scraping:
             embed.set_image(url=image_link)
             embed.timestamp = datetime.utcnow()
             embed.set_footer(text=esutaze_link,
-                             icon_url='https://www.startpage.com/av/proxy-image?piurl=https%3A%2F%2Fwww.esutaze.sk%2Fwp-content%2Fuploads%2F2016%2F11%2Flogo-esutaze.png&sp=1700075018T81dcbed0be165129a6c3452c1165a337a93663c6c749eacb888d407c52b0ad3f')
-            user = await bot.fetch_user(402221830930432000)
-            await user.send(embed=embed)
+                             icon_url='https://www.esutaze.sk/wp-content/uploads/2014/07/esutaze-logo2.jpg')
+
+            esutaze_channel = bot.get_channel(1302271245919981638)
+            await esutaze_channel.send(embed=embed)
 
             self.database.update_one({'_id': ObjectId('618945c8221f18d804636965')},
                                      {'$set': {
