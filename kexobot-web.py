@@ -54,6 +54,7 @@ bot = Bot(intents=intents)
 
 class Scraping:
     def __init__(self):
+        self.user_kexo = None
         self.session = requests.Session()
         self.session.verify = True
         self.session.headers = {'User-Agent': ua.random}
@@ -94,11 +95,14 @@ class Scraping:
                             'Steelseries - you will need to __install steelseries app__ so you could claim key',
                             'https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Flogonoid.com%2Fimages%2Fsteelseries-logo.png&f=1&nofb=1&ipt=9b95ffe9c56d51d56d320f181ffa9cad858d40b8f6f5a499fa2e0dbca7a0f798&ipo=images')}
 
+    async def initialize_users(self):
+        self.user_kexo = await bot.fetch_user(402221830930432000)
+
     async def onlinefix(self):
 
         try:
             games = self.database.find_one({'_id': ObjectId('6178211ec5f5c08c699b8fd3')},
-                                       {'onlinefix_cache': 1, 'games': 1})
+                                           {'onlinefix_cache': 1, 'games': 1})
         except pymongo.errors.ServerSelectionTimeoutError:
             return
 
@@ -172,7 +176,8 @@ class Scraping:
     async def game3rb_check(self):
 
         try:
-            games = self.database.find_one({'_id': ObjectId('6178211ec5f5c08c699b8fd3')}, {'game3rb_cache': 1, 'games': 1})
+            games = self.database.find_one({'_id': ObjectId('6178211ec5f5c08c699b8fd3')},
+                                           {'game3rb_cache': 1, 'games': 1})
         except pymongo.errors.ServerSelectionTimeoutError:
             return
 
@@ -230,12 +235,10 @@ class Scraping:
                         game_title.pop(game_title.index(to_remove))
                     except ValueError:
                         if full_title not in game3rb_cache not in to_upload:
-                            user = await bot.fetch_user(402221830930432000)
-
                             # Update list due to user spam
                             self.database.update_one({'_id': ObjectId('6178211ec5f5c08c699b8fd3')},
                                                      {'$set': {'game3rb_cache': to_upload}})
-                            await user.send(f'Incorrect version format - {full_title}')
+                            await kexo.send(f'Incorrect version format - {full_title}')
                             to_upload.append(full_title)
                         continue
 
@@ -418,16 +421,16 @@ class Scraping:
 
             for key, value in self.freegame_dict.items():
                 if key in url:
-                    tasks.append(send_embed((value[0], value[1], url, value[2], None)))
+                    tasks.append(send_freegame_embed((value[0], value[1], url, value[2], None)))
                     appended = True
                     break
 
             if appended is True:
                 continue
             else:
-                tasks.append(send_embed(('Free game - unknown site',
-                                         'Keys from this site __disappear really fast__ so you should go and get it fast!',
-                                         url, None, None)))
+                tasks.append(send_freegame_embed(('Free game - unknown site',
+                                                  'Keys from this site __disappear really fast__ so you should go and get it fast!',
+                                                  url, None, None)))
 
         await asyncio.gather(*tasks)
 
@@ -515,11 +518,10 @@ class Scraping:
                     await game_updates.send(embed=embed)
 
                 except Exception as e:
-                    user = await bot.fetch_user(402221830930432000)
-                    await user.send(f"Incorrect embed: `{submission.permalink}`"
-                                    f"\n```css\n[{e}]```"
-                                    f"\nImage url: {image_url}"
-                                    f"\nDescription: {post_description}")
+                    await self.user_kexo.send(f"Incorrect embed: `{submission.permalink}`"
+                                              f"\n```css\n[{e}]```"
+                                              f"\nImage url: {image_url}"
+                                              f"\nDescription: {post_description}")
 
             if crack_cache != crack_cache_link:
                 self.database.update_one({'_id': ObjectId('617958fae4043ee4a3f073f2')},
@@ -554,14 +556,18 @@ class Scraping:
         # Get first 3 articles
         for i in range(3):
             article = article.find_next('div', {'class': 'short-text-envelope-default short-text-envelope'})
+            full_article = article.find('div').text.lower()
+            article_head = article.find('a')['aria-label'].lower()
 
-            if 'elektriny' not in article.find('div').text and 'elektriny' not in article.find('a')['aria-label']:
+            if 'elektriny' in full_article or 'elektriny' in article_head or 'odstávka vody' in article_head:
+                pass
+            else:
                 continue
-
-            link = f"https://www.hliniknadhronom.sk{article.find('a')['href']}"
 
             if link in post_link:
                 continue
+
+            link = f"https://www.hliniknadhronom.sk{article.find('a')['href']}"
 
             to_upload.append(link)
             title = article.find('a')['aria-label']
@@ -580,8 +586,9 @@ class Scraping:
             embed.timestamp = datetime.utcnow()
             embed.set_footer(text='',
                              icon_url='https://www.hliniknadhronom.sk/portals_pictures/i_006868/i_6868718.png')
-            user = await bot.fetch_user(402221830930432000)
-            await user.send(embed=embed)
+
+            await self.user_kexo.send(embed=embed)
+
             if above_limit is True:
                 await user.send(post)
 
@@ -668,10 +675,11 @@ class Scraping:
 class_scraping = Scraping()
 
 
-@tasks.loop(hours=6)
+@tasks.loop(hours=1)
 async def daily_loop():
     # now = datetime.now()
     # Randomize user agent
+
     class_scraping.session.headers = {'User-Agent': ua.random}
     await class_scraping.elektrina_vypadky_check()
 
@@ -717,6 +725,7 @@ main_loop.start()
 @daily_loop.before_loop
 async def before_my_task():
     await bot.wait_until_ready()
+    await class_scraping.initialize_users()
 
 
 daily_loop.start()
@@ -750,11 +759,11 @@ async def key_hub(url, session):
         print(url)
         return
 
-    await send_embed((title,
-                      '**KeyHub** - keys from this site __disappear really fast__ so you should go and get it fast!',
-                      url,
-                      'https://cdn.discordapp.com/attachments/823205909353857085/890997523173494794/favicon-32x32.png',
-                      match.group(1)))
+    await send_freegame_embed((title,
+                               '**KeyHub** - keys from this site __disappear really fast__ so you should go and get it fast!',
+                               url,
+                               'https://cdn.discordapp.com/attachments/823205909353857085/890997523173494794/favicon-32x32.png',
+                               match.group(1)))
 
 
 async def fanatical(url, session):
@@ -769,14 +778,14 @@ async def fanatical(url, session):
 
     match = re.search(r"https://fanatical\.imgix\.net/[^\s\"]+", source)
 
-    await send_embed((title,
-                      f'**Fanatical** - sale ends <t:{str((datetime.now() + timedelta(days=5)).timestamp()).split(".")[0]}>',
-                      url,
-                      'https://media.discordapp.net/attachments/796453724713123870/1053672867591634965/output-onlinepngtools_1.png',
-                      match.group()))
+    await send_freegame_embed((title,
+                               f'**Fanatical** - sale ends <t:{str((datetime.now() + timedelta(days=5)).timestamp()).split(".")[0]}>',
+                               url,
+                               'https://media.discordapp.net/attachments/796453724713123870/1053672867591634965/output-onlinepngtools_1.png',
+                               match.group()))
 
 
-async def send_embed(info):
+async def send_freegame_embed(info):
     # title, description, url, thumbnail: None, game_image: None
     embed = discord.Embed(title=info[0], description=info[1], color=discord.Color.dark_theme())
 
@@ -797,6 +806,10 @@ async def send_embed(info):
                      icon_url='https://cdn.discordapp.com/attachments/796453724713123870/881868163137032212/communityIcon_xnoh6m7g9qh71.png')
 
     free_games = bot.get_channel(1081883673902714953)
+
+    if "Alienwarearena" in info[0]:
+        await free_games.send(f"<@{402221830930432000}>")
+
     msg = await free_games.send(embed=embed)
 
     if info[4]:
