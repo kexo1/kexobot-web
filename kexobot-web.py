@@ -7,8 +7,8 @@ import dns.resolver
 
 from fake_useragent import UserAgent
 from discord.ext import tasks, commands
-from constants import DISCORD_TOKEN, DISCORD_PRESENCES, MONGO_DB_URL, REDDIT_PASSWORD, REDDIT_SECRET, REDDIT_CLIENT_ID, \
-    REDDIT_USER_AGENT, REDDIT_USERNAME
+from constants import DISCORD_TOKEN, DISCORD_PRESENCES, MONGO_DB_URL, REDDIT_PASSWORD, REDDIT_SECRET,  \
+    REDDIT_USER_AGENT, REDDIT_USERNAME, REDDIT_CLIENT_ID
 
 dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
 dns.resolver.default_resolver.nameservers = ['8.8.8.8']
