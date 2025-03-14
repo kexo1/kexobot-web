@@ -1,0 +1,13 @@
+py-cord
+dnspython
+pymongo
+asyncio
+nest-asyncio
+requests
+asyncpraw
+bs4
+deep-translator
+unidecode
+urllib3
+lxml
+fake_useragent 
